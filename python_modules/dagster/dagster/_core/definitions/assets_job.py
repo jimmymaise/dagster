@@ -5,6 +5,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -65,39 +66,35 @@ def get_base_asset_jobs(
     resource_defs: Optional[Mapping[str, ResourceDefinition]],
     executor_def: Optional[ExecutorDefinition],
 ) -> Sequence[JobDefinition]:
-    if len(asset_graph.all_partitions_defs) == 0:
-        executable_asset_keys = asset_graph.executable_asset_keys
-        loadable_asset_keys = asset_graph.all_asset_keys - executable_asset_keys
-        return [
+    ag = asset_graph
+    unpartitioned_executable_keys = ag.unpartitioned_asset_keys & ag.executable_asset_keys
+    executable_keys_by_partitions_def = [
+        (None, unpartitioned_executable_keys),
+        *(
+            (pd, ag.asset_keys_for_partitions_def(partitions_def=pd) & ag.executable_asset_keys)
+            for pd in asset_graph.all_partitions_defs
+        )
+    ]
+
+    # exclude partitions defs with no executable assets
+    job_pairs = [pair for pair in executable_keys_by_partitions_def if pair[1]]
+    job_defs: List[JobDefinition] = []
+    for i, pair in enumerate(job_pairs):
+        partitions_def, keys = pair
+        executable_keys = keys | unpartitioned_executable_keys
+        loadable_keys = ag.all_asset_keys - executable_keys
+        job_defs.append(
             build_assets_job(
-                name=ASSET_BASE_JOB_PREFIX,
-                executable_assets=asset_graph.assets_defs_for_keys(executable_asset_keys),
-                loadable_assets=asset_graph.assets_defs_for_keys(loadable_asset_keys),
+                f"{ASSET_BASE_JOB_PREFIX}_{i}",
+                executable_assets=asset_graph.assets_defs_for_keys(executable_keys),
+                loadable_assets=asset_graph.assets_defs_for_keys(loadable_keys),
                 asset_checks=asset_graph.asset_checks_defs,
-                executor_def=executor_def,
                 resource_defs=resource_defs,
+                executor_def=executor_def,
+                partitions_def=partitions_def,
             )
-        ]
-    else:
-        jobs = []
-        for i, partitions_def in enumerate(asset_graph.all_partitions_defs):
-            executable_asset_keys = asset_graph.executable_asset_keys & {
-                *asset_graph.asset_keys_for_partitions_def(partitions_def=partitions_def),
-                *asset_graph.unpartitioned_asset_keys,
-            }
-            loadable_asset_keys = asset_graph.all_asset_keys - executable_asset_keys
-            jobs.append(
-                build_assets_job(
-                    f"{ASSET_BASE_JOB_PREFIX}_{i}",
-                    executable_assets=asset_graph.assets_defs_for_keys(executable_asset_keys),
-                    loadable_assets=asset_graph.assets_defs_for_keys(loadable_asset_keys),
-                    asset_checks=asset_graph.asset_checks_defs,
-                    resource_defs=resource_defs,
-                    executor_def=executor_def,
-                    partitions_def=partitions_def,
-                )
-            )
-        return jobs
+        )
+    return job_defs
 
 
 def build_assets_job(
