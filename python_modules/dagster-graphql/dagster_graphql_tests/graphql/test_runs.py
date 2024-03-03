@@ -248,6 +248,7 @@ RUN_CONCURRENCY_QUERY = """
         runId
         status
         hasConcurrencyKeySlots
+        rootConcurrencyKeys
       }
     }
   }
@@ -473,7 +474,7 @@ def get_repo_at_time_2():
 
 
 def get_asset_repo():
-    @op
+    @op(tags={"dagster/concurrency_key": "foo"})
     def foo():
         yield AssetMaterialization(asset_key="foo", description="foo")
         yield Output(None)
@@ -886,6 +887,7 @@ def test_run_has_concurrency_slots():
                 assert not result.data["pipelineRunsOrError"]["results"][0][
                     "hasConcurrencyKeySlots"
                 ]
+                assert result.data["pipelineRunsOrError"]["results"][0]["rootConcurrencyKeys"]
 
             claim = instance.event_log_storage.claim_concurrency_slot(
                 "foo", run_id, "fake_step_key"
@@ -898,3 +900,4 @@ def test_run_has_concurrency_slots():
                 assert len(result.data["pipelineRunsOrError"]["results"]) == 1
                 assert result.data["pipelineRunsOrError"]["results"][0]["runId"] == run_id
                 assert result.data["pipelineRunsOrError"]["results"][0]["hasConcurrencyKeySlots"]
+                assert result.data["pipelineRunsOrError"]["results"][0]["rootConcurrencyKeys"]

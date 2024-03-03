@@ -1412,6 +1412,7 @@ type Run implements PipelineRun {
   hasTerminatePermission: Boolean!
   hasDeletePermission: Boolean!
   hasConcurrencyKeySlots: Boolean!
+  rootConcurrencyKeys: [String!]
 }
 
 type AssetCheckhandle {
@@ -2378,6 +2379,7 @@ type Instance {
 type RunQueueConfig {
   maxConcurrentRuns: Int!
   tagConcurrencyLimitsYaml: String
+  isOpConcurrencyAware: Boolean
 }
 
 type ConcurrencyKeyInfo {

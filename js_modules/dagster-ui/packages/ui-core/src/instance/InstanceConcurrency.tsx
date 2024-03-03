@@ -53,6 +53,7 @@ import {COMMON_COLLATOR} from '../app/Util';
 import {useTrackPageView} from '../app/analytics';
 import {RunStatus} from '../graphql/types';
 import {useDocumentTitle} from '../hooks/useDocumentTitle';
+import {useQueryPersistedState} from '../hooks/useQueryPersistedState';
 import {RunStatusDot} from '../runs/RunStatusDots';
 import {failedStatuses} from '../runs/RunStatuses';
 import {titleForRun} from '../runs/RunUtils';
@@ -64,6 +65,9 @@ const DEFAULT_MAX_VALUE = 1000;
 const InstanceConcurrencyPage = React.memo(() => {
   useTrackPageView();
   useDocumentTitle('Concurrency');
+  const [selectedKey, setSelectedKey] = useQueryPersistedState<string | undefined>({
+    queryKey: 'key',
+  });
   const {pageTitle} = React.useContext(InstancePageContext);
   const queryResult = useQuery<
     InstanceConcurrencyLimitsQuery,
@@ -96,6 +100,8 @@ const InstanceConcurrencyPage = React.memo(() => {
             refetch={queryResult.refetch}
             minValue={data.instance.minConcurrencyLimitValue}
             maxValue={data.instance.maxConcurrencyLimitValue}
+            selectedKey={selectedKey}
+            onSelectKey={setSelectedKey}
           />
         </>
       ) : (
@@ -231,6 +237,8 @@ export const ConcurrencyLimits = ({
   refetch,
   minValue,
   maxValue,
+  selectedKey,
+  onSelectKey,
 }: {
   limits: ConcurrencyLimitFragment[];
   refetch: () => void;
@@ -238,12 +246,13 @@ export const ConcurrencyLimits = ({
   hasSupport?: boolean;
   maxValue?: number;
   minValue?: number;
+  selectedKey?: string | null;
+  onSelectKey: (key: string | undefined) => void;
 }) => {
   const [action, setAction] = React.useState<DialogAction>();
-  const [selectedKey, setSelectedKey] = React.useState<string | undefined>(undefined);
   const onConcurrencyStepsDialogClose = React.useCallback(() => {
-    setSelectedKey(undefined);
-  }, [setSelectedKey]);
+    onSelectKey(undefined);
+  }, [onSelectKey]);
 
   const limitsByKey = Object.fromEntries(
     limits.map(({concurrencyKey, slotCount}) => [concurrencyKey, slotCount]),
@@ -339,7 +348,7 @@ export const ConcurrencyLimits = ({
                   <Tag intent="primary" interactive>
                     <ButtonLink
                       onClick={() => {
-                        setSelectedKey(limit.concurrencyKey);
+                        onSelectKey(limit.concurrencyKey);
                       }}
                     >
                       View all
@@ -740,7 +749,7 @@ const ConcurrencyStepsDialog = ({
   title,
   onUpdate,
 }: {
-  concurrencyKey?: string;
+  concurrencyKey?: string | null;
   title: string | React.ReactNode;
   onClose: () => void;
   onUpdate: () => void;
