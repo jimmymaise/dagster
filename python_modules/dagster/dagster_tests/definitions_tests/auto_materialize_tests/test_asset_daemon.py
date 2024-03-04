@@ -40,7 +40,7 @@ from dagster._daemon.asset_daemon import (
     _PRE_SENSOR_AUTO_MATERIALIZE_INSTIGATOR_NAME,
     _PRE_SENSOR_AUTO_MATERIALIZE_ORIGIN_ID,
     _PRE_SENSOR_AUTO_MATERIALIZE_SELECTOR_ID,
-    asset_daemon_cursor_from_instigator_serialized_cursor,
+    asset_daemon_cursor_from_serialized_cursors,
     get_has_migrated_to_sensors,
     set_auto_materialize_paused,
 )
@@ -406,7 +406,7 @@ def test_auto_materialize_sensor_no_transition():
 
         # new sensor started with an empty cursor, reached evaluation ID 1
         assert (
-            asset_daemon_cursor_from_instigator_serialized_cursor(
+            asset_daemon_cursor_from_serialized_cursors(
                 cast(SensorInstigatorData, sensor_states[0].instigator_data).cursor,
                 None,
             ).evaluation_id
@@ -427,7 +427,7 @@ def test_auto_materialize_sensor_no_transition():
         )
         # now on evaluation ID 2
         assert (
-            asset_daemon_cursor_from_instigator_serialized_cursor(
+            asset_daemon_cursor_from_serialized_cursors(
                 cast(SensorInstigatorData, sensor_states[0].instigator_data).cursor,
                 None,
             ).evaluation_id
@@ -493,7 +493,7 @@ def test_auto_materialize_sensor_transition():
         for sensor_state in sensor_states:
             # cursor was propagated to each sensor, so all subsequent evaluation IDs are higher
             assert (
-                asset_daemon_cursor_from_instigator_serialized_cursor(
+                asset_daemon_cursor_from_serialized_cursors(
                     cast(SensorInstigatorData, sensor_state.instigator_data).cursor,
                     None,
                 ).evaluation_id

@@ -138,6 +138,12 @@ class AssetDaemonCursor:
         return hash(id(self))
 
 
+@whitelist_for_serdes
+@dataclass(frozen=True)
+class AssetScopedAssetDaemonCursor:
+    previous_evaluation_state: "AssetConditionEvaluationState"
+
+
 # BACKCOMPAT
 
 
