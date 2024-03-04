@@ -4218,6 +4218,7 @@ export type Run = PipelineRun & {
   hasDeletePermission: Scalars['Boolean'];
   hasReExecutePermission: Scalars['Boolean'];
   hasTerminatePermission: Scalars['Boolean'];
+  hasUnconstrainedRootNodes: Scalars['Boolean'];
   id: Scalars['ID'];
   jobName: Scalars['String'];
   mode: Scalars['String'];
@@ -12452,6 +12453,10 @@ export const buildRun = (
     hasTerminatePermission:
       overrides && overrides.hasOwnProperty('hasTerminatePermission')
         ? overrides.hasTerminatePermission!
+        : true,
+    hasUnconstrainedRootNodes:
+      overrides && overrides.hasOwnProperty('hasUnconstrainedRootNodes')
+        ? overrides.hasUnconstrainedRootNodes!
         : true,
     id:
       overrides && overrides.hasOwnProperty('id')
