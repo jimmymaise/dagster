@@ -66,6 +66,10 @@ export type AssetViewDefinitionQuery = {
                   id: string;
                   selectorId: string;
                   status: Types.InstigationStatus;
+                  typeSpecificData:
+                    | {__typename: 'ScheduleData'}
+                    | {__typename: 'SensorData'; lastCursor: string | null}
+                    | null;
                 };
               }
           >;
@@ -15891,6 +15895,10 @@ export type AssetViewDefinitionNodeFragment = {
           id: string;
           selectorId: string;
           status: Types.InstigationStatus;
+          typeSpecificData:
+            | {__typename: 'ScheduleData'}
+            | {__typename: 'SensorData'; lastCursor: string | null}
+            | null;
         };
       }
   >;
