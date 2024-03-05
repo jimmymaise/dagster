@@ -19,7 +19,7 @@ import pendulum
 
 import dagster._check as check
 from dagster._core.definitions.asset_graph import AssetGraph
-from dagster._core.definitions.asset_selection import AssetSelection
+from dagster._core.definitions.asset_selection import KeysAssetSelection
 from dagster._core.definitions.data_version import (
     DATA_VERSION_TAG,
     DataVersion,
@@ -163,7 +163,12 @@ class CachingDataTimeResolver:
             partitions_def=partitions_def,
         )
 
-        root_keys = AssetSelection.keys(asset_key).upstream().sources().resolve(self.asset_graph)
+        root_keys = (
+            KeysAssetSelection(selected_keys=[asset_key])
+            .upstream()
+            .sources()
+            .resolve(self.asset_graph)
+        )
         return {key: partition_data_time for key in root_keys}
 
     ####################
