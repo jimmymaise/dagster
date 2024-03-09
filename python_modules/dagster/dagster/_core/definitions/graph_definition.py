@@ -51,6 +51,7 @@ from .node_container import create_execution_structure, normalize_dependency_dic
 from .node_definition import NodeDefinition
 from .output import OutputDefinition, OutputMapping
 from .resource_requirement import ResourceRequirement
+from .utils import NormalizedTags
 from .version_strategy import VersionStrategy
 
 if TYPE_CHECKING:
@@ -200,7 +201,7 @@ class GraphDefinition(NodeDefinition):
         input_mappings: Optional[Sequence[InputMapping]] = None,
         output_mappings: Optional[Sequence[OutputMapping]] = None,
         config: Optional[ConfigMapping] = None,
-        tags: Optional[Mapping[str, str]] = None,
+        tags: Union[NormalizedTags, Optional[Mapping[str, str]]] = None,
         node_input_source_assets: Optional[Mapping[str, Mapping[str, "SourceAsset"]]] = None,
         **kwargs: Any,
     ):
@@ -561,7 +562,7 @@ class GraphDefinition(NodeDefinition):
         config: Optional[
             Union["RunConfig", ConfigMapping, Mapping[str, object], "PartitionedConfig"]
         ] = None,
-        tags: Optional[Mapping[str, str]] = None,
+        tags: Union[NormalizedTags, Optional[Mapping[str, str]]] = None,
         metadata: Optional[Mapping[str, RawMetadataValue]] = None,
         logger_defs: Optional[Mapping[str, LoggerDefinition]] = None,
         executor_def: Optional["ExecutorDefinition"] = None,
