@@ -353,37 +353,38 @@ class AssetSelection(ABC, BaseModel, frozen=True):
         asset_keys = self.resolve(asset_graph)
         return {handle for handle in asset_graph.asset_check_keys if handle.asset_key in asset_keys}
 
-    @staticmethod
-    def _selection_from_string(string: str) -> "AssetSelection":
-        from dagster._core.definitions import AssetSelection
-
+    @classmethod
+    def from_string(cls, string: str) -> "AssetSelection":
         if string == "*":
-            return AssetSelection.all()
+            return cls.all()
 
         parts = parse_clause(string)
-        if not parts:
-            check.failed(f"Invalid selection string: {string}")
-        u, item, d = parts
+        if parts is not None:
+            key_selection = cls.keys(parts.item_name)
+            if parts.up_depth and parts.down_depth:
+                selection = key_selection.upstream(parts.up_depth) | key_selection.downstream(
+                    parts.down_depth
+                )
+            elif parts.up_depth:
+                selection = key_selection.upstream(parts.up_depth)
+            elif parts.down_depth:
+                selection = key_selection.downstream(parts.down_depth)
+            else:
+                selection = key_selection
+            return selection
 
-        selection: AssetSelection = AssetSelection.keys(item)
-        if u:
-            selection = selection.upstream(u)
-        if d:
-            selection = selection.downstream(d)
-        return selection
+        check.failed(f"Invalid selection string: {string}")
 
     @classmethod
     def from_coercible(cls, selection: CoercibleToAssetSelection) -> "AssetSelection":
         if isinstance(selection, str):
-            return cls._selection_from_string(selection)
+            return cls.from_string(selection)
         elif isinstance(selection, AssetSelection):
             return selection
         elif isinstance(selection, collections.abc.Sequence) and all(
             isinstance(el, str) for el in selection
         ):
-            return reduce(
-                operator.or_, [cls._selection_from_string(cast(str, s)) for s in selection]
-            )
+            return reduce(operator.or_, [cls.from_string(cast(str, s)) for s in selection])
         elif isinstance(selection, collections.abc.Sequence) and all(
             isinstance(el, (AssetsDefinition, SourceAsset)) for el in selection
         ):
