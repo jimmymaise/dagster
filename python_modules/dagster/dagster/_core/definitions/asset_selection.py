@@ -20,6 +20,7 @@ from dagster._core.selector.subset_selector import (
     fetch_sources,
     parse_clause,
 )
+from dagster._core.storage.tags import TAG_NO_VALUE
 from dagster._serdes.serdes import whitelist_for_serdes
 
 from .asset_check_spec import AssetCheckKey
@@ -420,8 +421,14 @@ class AssetSelection(ABC, BaseModel, frozen=True):
 
     @classmethod
     def tag_string(cls, string: str) -> "AssetSelection":
-        key, value = string.split("=")
-        return TagAssetSelection(key=key, value=value)
+        split_by_equals_segments = string.split("=")
+        if len(split_by_equals_segments) == 1:
+            return TagAssetSelection(key=string, value=TAG_NO_VALUE)
+        elif len(split_by_equals_segments) == 2:
+            key, value = split_by_equals_segments
+            return TagAssetSelection(key=key, value=value)
+        else:
+            check.failed(f"Invalid tag selection string: {string}. Must have no more than one '='.")
 
     def to_serializable_asset_selection(self, asset_graph: BaseAssetGraph) -> "AssetSelection":
         return AssetSelection.keys(*self.resolve(asset_graph))
