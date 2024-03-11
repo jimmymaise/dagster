@@ -6,9 +6,11 @@ from typing import Any, Dict, List, Optional, Union, cast
 
 import pytest
 from dagster import (
+    AssetKey,
     AssetMaterialization,
     FloatMetadataValue,
     IntMetadataValue,
+    JsonMetadataValue,
     TextMetadataValue,
     job,
     materialize,
@@ -370,6 +372,204 @@ def test_dbt_cli_adapter_metadata(
     assert result.success
 
 
+def test_dbt_cli_lineage_metadata(
+    test_jaffle_shop_manifest: Dict[str, Any], dbt: DbtCliResource
+) -> None:
+    @dbt_assets(manifest=test_jaffle_shop_manifest)
+    def my_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+        yield from dbt.cli(["build"], context=context).stream()
+
+    result = materialize([my_dbt_assets], resources={"dbt": dbt})
+    assert result.success
+
+    lineage_metadata_by_asset_key = {
+        event.materialization.asset_key: event.materialization.metadata.get("lineage")
+        for event in result.get_asset_materialization_events()
+    }
+
+    assert lineage_metadata_by_asset_key == {
+        AssetKey(["raw_payments"]): None,
+        AssetKey(["raw_customers"]): None,
+        AssetKey(["raw_orders"]): None,
+        AssetKey(["stg_customers"]): JsonMetadataValue(
+            data={
+                "customer_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_customers"]),
+                        "upstream_column_name": "id",
+                    }
+                ],
+                "first_name": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_customers"]),
+                        "upstream_column_name": "first_name",
+                    }
+                ],
+                "last_name": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_customers"]),
+                        "upstream_column_name": "last_name",
+                    }
+                ],
+            }
+        ),
+        AssetKey(["stg_orders"]): JsonMetadataValue(
+            data={
+                "order_id": [
+                    {"upstream_asset_key": AssetKey(["raw_orders"]), "upstream_column_name": "id"}
+                ],
+                "customer_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_orders"]),
+                        "upstream_column_name": "user_id",
+                    }
+                ],
+                "order_date": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_orders"]),
+                        "upstream_column_name": "order_date",
+                    }
+                ],
+                "status": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_orders"]),
+                        "upstream_column_name": "status",
+                    }
+                ],
+            }
+        ),
+        AssetKey(["stg_payments"]): JsonMetadataValue(
+            data={
+                "payment_id": [
+                    {"upstream_asset_key": AssetKey(["raw_payments"]), "upstream_column_name": "id"}
+                ],
+                "order_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_payments"]),
+                        "upstream_column_name": "order_id",
+                    }
+                ],
+                "payment_method": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_payments"]),
+                        "upstream_column_name": "payment_method",
+                    }
+                ],
+                "amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["raw_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+            }
+        ),
+        AssetKey(["orders"]): JsonMetadataValue(
+            data={
+                "order_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "order_id",
+                    }
+                ],
+                "customer_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "customer_id",
+                    }
+                ],
+                "order_date": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "order_date",
+                    }
+                ],
+                "status": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "status",
+                    }
+                ],
+                "credit_card_amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+                "coupon_amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+                "bank_transfer_amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+                "gift_card_amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+                "amount": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+            }
+        ),
+        AssetKey(["customers"]): JsonMetadataValue(
+            data={
+                "customer_id": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_customers"]),
+                        "upstream_column_name": "customer_id",
+                    }
+                ],
+                "first_name": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_customers"]),
+                        "upstream_column_name": "first_name",
+                    }
+                ],
+                "last_name": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_customers"]),
+                        "upstream_column_name": "last_name",
+                    }
+                ],
+                "first_order": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "order_date",
+                    }
+                ],
+                "most_recent_order": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "order_date",
+                    }
+                ],
+                "number_of_orders": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_orders"]),
+                        "upstream_column_name": "order_id",
+                    }
+                ],
+                "customer_lifetime_value": [
+                    {
+                        "upstream_asset_key": AssetKey(["stg_payments"]),
+                        "upstream_column_name": "amount",
+                    }
+                ],
+            }
+        ),
+    }
+
+
 def test_dbt_cli_asset_selection(
     test_jaffle_shop_manifest: Dict[str, Any], dbt: DbtCliResource
 ) -> None:
@@ -573,6 +773,7 @@ def test_to_default_asset_output_events() -> None:
     assert asset_events[0].metadata == {
         "unique_id": TextMetadataValue("a.b.c"),
         "invocation_id": TextMetadataValue("1-2-3"),
+        "lineage": JsonMetadataValue({}),
         "Execution Duration": FloatMetadataValue(60.0),
         "rows_affected": IntMetadataValue(100),
     }
