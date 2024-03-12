@@ -107,7 +107,9 @@ def build_repo_wide_pyright_steps() -> List[CommandStep]:
         CommandStepBuilder(":pyright: pyright")
         .run(
             "curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y",
-            "pip install uv -e python_modules/dagster[pyright] -e python_modules/dagster-pipes",
+            "pip install -U uv",
+            "make install_pyright",
+            "make rebuild_pyright_pins",
             "make pyright",
         )
         .on_test_image(AvailablePythonVersion.get_default())
