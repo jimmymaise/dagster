@@ -22,7 +22,6 @@ from dagster._config.pythonic_config import (
     ConfigurableResourceFactoryResourceDefinition,
     ResourceWithKeyMapping,
 )
-from dagster._core.definitions.asset_checks import AssetChecksDefinition
 from dagster._core.definitions.asset_graph import AssetGraph
 from dagster._core.definitions.assets_job import (
     get_base_asset_jobs,
@@ -50,7 +49,6 @@ from .repository_data import CachingRepositoryData
 from .valid_definitions import VALID_REPOSITORY_DATA_DICT_KEYS, RepositoryListDefinition
 
 if TYPE_CHECKING:
-    from dagster._core.definitions.asset_check_spec import AssetCheckKey
     from dagster._core.definitions.events import AssetKey
 
 
@@ -163,9 +161,7 @@ def build_caching_repository_data_from_list(
     sensors: Dict[str, SensorDefinition] = {}
     assets_defs: List[AssetsDefinition] = []
     asset_keys: Set[AssetKey] = set()
-    asset_check_keys: Set["AssetCheckKey"] = set()
     source_assets: List[SourceAsset] = []
-    asset_checks_defs: List[AssetChecksDefinition] = []
     for definition in repository_definitions:
         if isinstance(definition, JobDefinition):
             if (
@@ -229,19 +225,11 @@ def build_caching_repository_data_from_list(
         elif isinstance(definition, SourceAsset):
             source_assets.append(definition)
             asset_keys.add(definition.key)
-        elif isinstance(definition, AssetChecksDefinition):
-            for key in definition.keys:
-                if key in asset_check_keys:
-                    raise DagsterInvalidDefinitionError(f"Duplicate asset check key: {key}")
-            asset_check_keys.update(definition.keys)
-            asset_checks_defs.append(definition)
         else:
             check.failed(f"Unexpected repository entry {definition}")
 
-    asset_graph = AssetGraph.from_assets(
-        [*assets_defs, *source_assets], asset_checks=asset_checks_defs
-    )
-    if assets_defs or source_assets or asset_checks_defs:
+    asset_graph = AssetGraph.from_assets([*assets_defs, *source_assets])
+    if assets_defs or source_assets:
         for job_def in get_base_asset_jobs(
             asset_graph=asset_graph,
             executor_def=default_executor_def,
@@ -251,13 +239,9 @@ def build_caching_repository_data_from_list(
 
         source_assets_by_key = {source_asset.key: source_asset for source_asset in source_assets}
         assets_defs_by_key = {key: asset for asset in assets_defs for key in asset.keys}
-        asset_checks_defs_by_key = {
-            key: checks_def for checks_def in asset_checks_defs for key in checks_def.keys
-        }
     else:
         source_assets_by_key = {}
         assets_defs_by_key = {}
-        asset_checks_defs_by_key = {}
 
     for name, sensor_def in sensors.items():
         if sensor_def.has_loadable_targets():
@@ -328,7 +312,6 @@ def build_caching_repository_data_from_list(
         sensors=sensors,
         source_assets_by_key=source_assets_by_key,
         assets_defs_by_key=assets_defs_by_key,
-        asset_checks_defs_by_key=asset_checks_defs_by_key,
         top_level_resources=top_level_resources or {},
         utilized_env_vars=utilized_env_vars,
         resource_key_mapping=resource_key_mapping or {},
@@ -391,7 +374,6 @@ def build_caching_repository_data_from_dict(
         **repository_definitions,
         source_assets_by_key={},
         assets_defs_by_key={},
-        asset_checks_defs_by_key={},
         top_level_resources={},
         utilized_env_vars={},
         resource_key_mapping={},

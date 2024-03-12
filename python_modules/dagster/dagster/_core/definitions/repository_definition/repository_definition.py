@@ -44,7 +44,6 @@ from .valid_definitions import (
 
 if TYPE_CHECKING:
     from dagster._core.definitions import AssetsDefinition
-    from dagster._core.definitions.asset_checks import AssetChecksDefinition
     from dagster._core.definitions.cacheable_assets import CacheableAssetsDefinition
     from dagster._core.storage.asset_value_loader import AssetValueLoader
 
@@ -262,12 +261,6 @@ class RepositoryDefinition:
         """Mapping[AssetKey, AssetsDefinition]: The assets definitions defined in the repository."""
         return self._repository_data.get_assets_defs_by_key()
 
-    @public
-    @property
-    def asset_checks_defs_by_key(self) -> Mapping[AssetKey, "AssetChecksDefinition"]:
-        """Mapping[AssetCheckKey, AssetChecksDefinition]: The assets checks defined in the repository."""
-        return self._repository_data.get_asset_checks_defs_by_key()
-
     def has_implicit_global_asset_job_def(self) -> bool:
         """Returns true is there is a single implicit asset job for all asset keys in a repository."""
         return self.has_job(ASSET_BASE_JOB_PREFIX)
@@ -408,7 +401,6 @@ class RepositoryDefinition:
                 *list(dict.fromkeys(self.assets_defs_by_key.values())),
                 *self.source_assets_by_key.values(),
             ],
-            list(dict.fromkeys(self.asset_checks_defs_by_key.values())),
         )
 
     # If definition comes from the @repository decorator, then the __call__ method will be

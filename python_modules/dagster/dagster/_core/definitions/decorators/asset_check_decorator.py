@@ -7,10 +7,6 @@ from dagster._annotations import experimental
 from dagster._config import UserConfigSchema
 from dagster._core.definitions.asset_check_result import AssetCheckResult
 from dagster._core.definitions.asset_check_spec import AssetCheckSpec
-from dagster._core.definitions.asset_checks import (
-    AssetChecksDefinition,
-    AssetChecksDefinitionInputOutputProps,
-)
 from dagster._core.definitions.asset_dep import CoercibleToAssetDep
 from dagster._core.definitions.asset_in import AssetIn
 from dagster._core.definitions.assets import AssetsDefinition
@@ -104,7 +100,7 @@ def asset_check(
     compute_kind: Optional[str] = None,
     op_tags: Optional[Mapping[str, Any]] = None,
     retry_policy: Optional[RetryPolicy] = None,
-) -> Callable[[AssetCheckFunction], AssetChecksDefinition]:
+) -> Callable[[AssetCheckFunction], AssetsDefinition]:
     """Create a definition for how to execute an asset check.
 
     Args:
@@ -176,7 +172,7 @@ def asset_check(
     check.opt_set_param(required_resource_keys, "required_resource_keys", of_type=str)
     dict(check.opt_mapping_param(resource_defs, "resource_defs", key_type=str))
 
-    def inner(fn: AssetCheckFunction) -> AssetChecksDefinition:
+    def inner(fn: AssetCheckFunction) -> AssetsDefinition:
         check.callable_param(fn, "fn")
         resolved_name = name or fn.__name__
         asset_key = AssetKey.from_coercible_or_definition(asset)
@@ -232,19 +228,42 @@ def asset_check(
             retry_policy=retry_policy,
         )(fn)
 
-        checks_def = AssetChecksDefinition(
+        return AssetsDefinition(
+            keys_by_input_name={},
+            keys_by_output_name={},
             node_def=op_def,
+            partitions_def=None,
+            partition_mappings=None,
+            asset_deps=None,
+            selected_asset_keys=None,
+            can_subset=False,
             resource_defs=wrap_resources_for_execution(resource_defs),
-            specs=[spec],
-            input_output_props=AssetChecksDefinitionInputOutputProps(
-                asset_keys_by_input_name={
-                    input_tuple[0]: asset_key
-                    for asset_key, input_tuple in input_tuples_by_asset_key.items()
-                },
-                asset_check_keys_by_output_name={op_def.output_defs[0].name: spec.key},
-            ),
+            group_names_by_key=None,
+            metadata_by_key=None,
+            tags_by_key=None,
+            freshness_policies_by_key=None,
+            auto_materialize_policies_by_key=None,
+            backfill_policy=None,
+            descriptions_by_key=None,
+            check_specs_by_output_name={op_def.output_defs[0].name: spec},
+            selected_asset_check_keys=None,
+            is_subset=False,
+            owners_by_key=None,
         )
 
-        return checks_def
+        # checks_def = AssetChecksDefinition(
+        #     node_def=op_def,
+        #     resource_defs=wrap_resources_for_execution(resource_defs),
+        #     specs=[spec],
+        #     input_output_props=AssetChecksDefinitionInputOutputProps(
+        #         asset_keys_by_input_name={
+        #             input_tuple[0]: asset_key
+        #             for asset_key, input_tuple in input_tuples_by_asset_key.items()
+        #         },
+        #         asset_check_keys_by_output_name={op_def.output_defs[0].name: spec.key},
+        #     ),
+        # )
+        #
+        # return checks_def
 
     return inner

@@ -19,7 +19,6 @@ from typing import (
 
 import dagster._check as check
 from dagster._core.definitions.asset_check_spec import AssetCheckKey, AssetCheckSpec
-from dagster._core.definitions.asset_checks import AssetChecksDefinition
 from dagster._core.definitions.asset_spec import (
     AssetExecutionType,
 )
@@ -397,7 +396,6 @@ class AssetLayer(NamedTuple):
     # See AssetLayer.downstream_dep_assets for more information
     dep_asset_keys_by_node_output_handle: Mapping[NodeOutputHandle, Set[AssetKey]]
     partition_mappings_by_asset_dep: Mapping[Tuple[NodeHandle, AssetKey], "PartitionMapping"]
-    asset_checks_defs_by_node_handle: Mapping[NodeHandle, "AssetChecksDefinition"]
     node_output_handles_by_asset_check_key: Mapping[AssetCheckKey, NodeOutputHandle]
     check_names_by_asset_key_by_node_handle: Mapping[
         NodeHandle, Mapping[AssetKey, AbstractSet[str]]
@@ -407,7 +405,6 @@ class AssetLayer(NamedTuple):
     def from_graph_and_assets_node_mapping(
         graph_def: GraphDefinition,
         assets_defs_by_outer_node_handle: Mapping[NodeHandle, "AssetsDefinition"],
-        asset_checks_defs_by_node_handle: Mapping[NodeHandle, "AssetChecksDefinition"],
         asset_graph: "AssetGraph",
     ) -> "AssetLayer":
         """Generate asset info from a GraphDefinition and a mapping from nodes in that graph to the
@@ -535,29 +532,6 @@ class AssetLayer(NamedTuple):
             for node_output_handle in node_output_handles:
                 dep_asset_keys_by_node_output_handle[node_output_handle].add(asset_key)
 
-        for node_handle, checks_def in asset_checks_defs_by_node_handle.items():
-            check_names_by_asset_key_by_node_handle[node_handle] = defaultdict(set)
-            for output_name, check_spec in checks_def.specs_by_output_name.items():
-                inner_output_def, inner_node_handle = checks_def.node_def.resolve_output_to_origin(
-                    output_name, handle=node_handle
-                )
-                node_output_handle = NodeOutputHandle(
-                    check.not_none(inner_node_handle), inner_output_def.name
-                )
-                node_output_handles_by_asset_check_key[check_spec.key] = node_output_handle
-                check_names_by_asset_key_by_node_handle[node_handle][check_spec.asset_key].add(
-                    check_spec.name
-                )
-                check_key_by_output[node_output_handle] = check_spec.key
-
-            for input_name, asset_key in checks_def.asset_keys_by_input_name.items():
-                input_handle = NodeInputHandle(node_handle, input_name)
-                asset_key_by_input[input_handle] = asset_key
-                # resolve graph input to list of op inputs that consume it
-                node_input_handles = checks_def.node_def.resolve_input_to_destinations(input_handle)
-                for node_input_handle in node_input_handles:
-                    asset_key_by_input[node_input_handle] = asset_key
-
         assets_defs_by_key = {
             key: assets_def
             for assets_def in (
@@ -594,7 +568,6 @@ class AssetLayer(NamedTuple):
             io_manager_keys_by_asset_key=io_manager_by_asset,
             dep_asset_keys_by_node_output_handle=dep_asset_keys_by_node_output_handle,
             partition_mappings_by_asset_dep=partition_mappings_by_asset_dep,
-            asset_checks_defs_by_node_handle=asset_checks_defs_by_node_handle,
             node_output_handles_by_asset_check_key=node_output_handles_by_asset_check_key,
             check_names_by_asset_key_by_node_handle=check_names_by_asset_key_by_node_handle,
         )
@@ -620,10 +593,6 @@ class AssetLayer(NamedTuple):
     @property
     def assets_defs(self) -> Set["AssetsDefinition"]:
         return set(assets_def for assets_def in self.assets_defs_by_key.values())
-
-    @property
-    def has_asset_check_defs(self) -> bool:
-        return len(self.asset_checks_defs_by_node_handle) > 0
 
     def has_assets_def_for_asset(self, asset_key: AssetKey) -> bool:
         return asset_key in self.assets_defs_by_key
@@ -654,36 +623,13 @@ class AssetLayer(NamedTuple):
 
     def asset_check_specs_for_node(self, node_handle: NodeHandle) -> Sequence[AssetCheckSpec]:
         assets_def_for_node = self.assets_def_for_node(node_handle)
-        checks_def_for_node = self.asset_checks_def_for_node(node_handle)
-
-        if assets_def_for_node is not None:
-            check.invariant(checks_def_for_node is None)
-            return list(assets_def_for_node.check_specs)
-        elif checks_def_for_node is not None:
-            return list(checks_def_for_node.specs)
-        else:
-            return []
+        return list(assets_def_for_node.check_specs) if assets_def_for_node else []
 
     def get_spec_for_asset_check(
         self, node_handle: NodeHandle, asset_check_key: AssetCheckKey
     ) -> Optional[AssetCheckSpec]:
-        asset_checks_def_or_assets_def = self.asset_checks_defs_by_node_handle.get(
-            node_handle
-        ) or self.assets_defs_by_node_handle.get(node_handle)
-        return (
-            asset_checks_def_or_assets_def.get_spec_for_check_key(asset_check_key)
-            if asset_checks_def_or_assets_def
-            else None
-        )
-
-    def asset_checks_def_for_node(
-        self, node_handle: NodeHandle
-    ) -> Optional["AssetChecksDefinition"]:
-        return self.asset_checks_defs_by_node_handle.get(node_handle)
-
-    @property
-    def asset_checks_defs(self) -> Iterable[AssetChecksDefinition]:
-        return self.asset_checks_defs_by_node_handle.values()
+        assets_def = self.assets_defs_by_node_handle.get(node_handle)
+        return assets_def.get_spec_for_check_key(asset_check_key) if assets_def else None
 
     def get_output_name_for_asset_check(self, asset_check_key: AssetCheckKey) -> str:
         """Output name in the leaf op."""
@@ -818,7 +764,6 @@ class AssetLayer(NamedTuple):
 def build_asset_selection_job(
     name: str,
     assets: Iterable["AssetsDefinition"],
-    asset_checks: Iterable["AssetChecksDefinition"],
     executor_def: Optional[ExecutorDefinition] = None,
     config: Optional[Union[ConfigMapping, Mapping[str, Any], "PartitionedConfig"]] = None,
     partitions_def: Optional["PartitionsDefinition"] = None,
@@ -842,7 +787,6 @@ def build_asset_selection_job(
         # no selections, include everything
         included_assets = list(assets)
         excluded_assets = []
-        included_checks_defs = list(asset_checks)
     else:
         # Filter to assets that match either selected assets or include a selected check.
         # E.g. a multi asset can be included even if it's not in asset_selection, if it has a selected check
@@ -850,23 +794,6 @@ def build_asset_selection_job(
         (included_assets, excluded_assets) = subset_assets_defs(
             assets, asset_selection or set(), asset_check_selection
         )
-
-        if asset_check_selection is None:
-            # If assets were selected and checks are None, then include all checks on the selected assets.
-            # Note: once we start explicitly passing in asset checks instead of None from the front end,
-            # we can remove this logic.
-            included_checks_defs = [
-                asset_check
-                for asset_check in asset_checks
-                if asset_check.asset_key in check.not_none(asset_selection)
-            ]
-        else:
-            # Otherwise, filter to explicitly selected checks defs
-            included_checks_defs = [
-                asset_check
-                for asset_check in asset_checks
-                if [spec for spec in asset_check.specs if spec.key in asset_check_selection]
-            ]
 
     if partitions_def:
         for asset in included_assets:
@@ -886,9 +813,7 @@ def build_asset_selection_job(
         )
         for unexecutable_ad in create_unexecutable_external_assets_from_assets_def(ad)
     ]
-    asset_graph = AssetGraph.from_assets(
-        [*executable_assets_defs, *unexecutable_assets_defs], included_checks_defs
-    )
+    asset_graph = AssetGraph.from_assets([*executable_assets_defs, *unexecutable_assets_defs])
 
     return build_assets_job(
         name=name,

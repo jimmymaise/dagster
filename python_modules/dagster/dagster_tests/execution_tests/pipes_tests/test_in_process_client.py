@@ -234,7 +234,7 @@ def test_get_asset_check_result() -> None:
 
     result = (
         Definitions(
-            asset_checks=[an_asset_check],
+            assets=[an_asset_check],
             resources={"inprocess_client": InProcessPipesClient()},
         )
         .get_implicit_global_asset_job_def()

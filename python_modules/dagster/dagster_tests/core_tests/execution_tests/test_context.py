@@ -1,9 +1,12 @@
+from typing import Sequence
+
 import dagster._check as check
 import pytest
 from dagster import (
     AssetCheckResult,
     AssetExecutionContext,
     AssetOut,
+    AssetsDefinition,
     DagsterInstance,
     Definitions,
     GraphDefinition,
@@ -309,8 +312,10 @@ def test_context_provided_to_plain_python():
 def test_context_provided_to_asset_check():
     instance = DagsterInstance.ephemeral()
 
-    def execute_assets_and_checks(assets=None, asset_checks=None, raise_on_error: bool = True):
-        defs = Definitions(assets=assets, asset_checks=asset_checks)
+    def execute_assets_and_checks(
+        assets_and_checks: Sequence[AssetsDefinition], raise_on_error: bool = True
+    ):
+        defs = Definitions(assets=assets_and_checks)
         job_def = defs.get_implicit_global_asset_job_def()
         return job_def.execute_in_process(raise_on_error=raise_on_error, instance=instance)
 
@@ -322,13 +327,13 @@ def test_context_provided_to_asset_check():
     def no_annotation(context):
         assert isinstance(context, AssetExecutionContext)
 
-    execute_assets_and_checks(assets=[to_check], asset_checks=[no_annotation])
+    execute_assets_and_checks([to_check, no_annotation])
 
     @asset_check(asset=to_check)
     def asset_annotation(context: AssetExecutionContext):
         assert isinstance(context, AssetExecutionContext)
 
-    execute_assets_and_checks(assets=[to_check], asset_checks=[asset_annotation])
+    execute_assets_and_checks([to_check, asset_annotation])
 
     @asset_check(asset=to_check)
     def op_annotation(context: OpExecutionContext):
@@ -336,14 +341,16 @@ def test_context_provided_to_asset_check():
         # AssetExecutionContext is an instance of OpExecutionContext, so add this additional check
         assert not isinstance(context, AssetExecutionContext)
 
-    execute_assets_and_checks(assets=[to_check], asset_checks=[op_annotation])
+    execute_assets_and_checks([to_check, op_annotation])
 
 
 def test_context_provided_to_blocking_asset_check():
     instance = DagsterInstance.ephemeral()
 
-    def execute_assets_and_checks(assets=None, asset_checks=None, raise_on_error: bool = True):
-        defs = Definitions(assets=assets, asset_checks=asset_checks)
+    def execute_assets_and_checks(
+        assets_and_checks: Sequence[AssetsDefinition], raise_on_error: bool = True
+    ):
+        defs = Definitions(assets=assets_and_checks)
         job_def = defs.get_implicit_global_asset_job_def()
         return job_def.execute_in_process(raise_on_error=raise_on_error, instance=instance)
 
@@ -359,7 +366,7 @@ def test_context_provided_to_blocking_asset_check():
     no_annotation_blocking_asset = build_asset_with_blocking_check(
         asset_def=to_check, checks=[no_annotation]
     )
-    execute_assets_and_checks(assets=[no_annotation_blocking_asset])
+    execute_assets_and_checks([no_annotation_blocking_asset])
 
     @asset_check(asset=to_check)
     def asset_annotation(context: AssetExecutionContext):
@@ -369,7 +376,7 @@ def test_context_provided_to_blocking_asset_check():
     asset_annotation_blocking_asset = build_asset_with_blocking_check(
         asset_def=to_check, checks=[asset_annotation]
     )
-    execute_assets_and_checks(assets=[asset_annotation_blocking_asset])
+    execute_assets_and_checks([asset_annotation_blocking_asset])
 
     @asset_check(asset=to_check)
     def op_annotation(context: OpExecutionContext):
@@ -381,7 +388,7 @@ def test_context_provided_to_blocking_asset_check():
     op_annotation_blocking_asset = build_asset_with_blocking_check(
         asset_def=to_check, checks=[op_annotation]
     )
-    execute_assets_and_checks(assets=[op_annotation_blocking_asset])
+    execute_assets_and_checks([op_annotation_blocking_asset])
 
 
 def test_error_on_invalid_context_annotation():

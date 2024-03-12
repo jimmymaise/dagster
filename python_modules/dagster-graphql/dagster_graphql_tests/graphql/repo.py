@@ -2062,6 +2062,7 @@ def define_assets():
         ungrouped_asset_3,
         grouped_asset_4,
         ungrouped_asset_5,
+        my_check,
     ]
 
 
@@ -2072,18 +2073,11 @@ def define_resources():
     }
 
 
-def define_asset_checks():
-    return [
-        my_check,
-    ]
-
-
 asset_jobs = define_asset_jobs()
 asset_job_names = [job.name for job in asset_jobs]
 
 test_repo = Definitions(
     assets=define_assets(),
-    asset_checks=define_asset_checks(),
     jobs=[*asset_jobs, *define_standard_jobs()],
     schedules=define_schedules(),
     sensors=define_sensors(),

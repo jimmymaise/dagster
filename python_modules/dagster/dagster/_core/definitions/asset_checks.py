@@ -187,7 +187,7 @@ class AssetChecksDefinition(ResourceAddable, RequiresResources):
 @experimental
 def build_asset_with_blocking_check(
     asset_def: "AssetsDefinition",
-    checks: Sequence[AssetChecksDefinition],
+    checks: Sequence["AssetsDefinition"],
 ) -> "AssetsDefinition":
     from dagster import AssetIn, In, OpExecutionContext, Output, op
     from dagster._core.definitions.decorators.asset_decorator import graph_asset_no_defaults
@@ -195,7 +195,7 @@ def build_asset_with_blocking_check(
 
     check_specs = []
     for c in checks:
-        check_specs.extend(c.specs)
+        check_specs.extend(c.check_specs)
 
     check_output_names = [c.get_python_identifier() for c in check_specs]
 

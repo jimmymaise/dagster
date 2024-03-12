@@ -36,9 +36,8 @@ def asset2_check1():
 
 
 def execute_asset_job_in_process(asset_job: UnresolvedAssetJobDefinition) -> ExecuteInProcessResult:
-    assets = [asset1, asset2]
-    asset_checks = [asset1_check1, asset1_check2, asset2_check1]
-    defs = Definitions(assets=assets, jobs=[asset_job], asset_checks=asset_checks)
+    assets = [asset1, asset2, asset1_check1, asset1_check2, asset2_check1]
+    defs = Definitions(assets=assets, jobs=[asset_job])
     job_def = defs.get_job_def(asset_job.name)
     return job_def.execute_in_process()
 

@@ -19,10 +19,9 @@ config_file = os.path.expanduser("~/.kube/config")
 kubernetes.config.load_kube_config(config_file)
 
 defs = Definitions(
-    assets=[*external_asset_defs, telem_post_processing],
+    assets=[*external_asset_defs, telem_post_processing, telem_post_processing_check],
     sensors=[telem_post_processing_sensor],
     jobs=[telem_post_processing_job],
-    asset_checks=[telem_post_processing_check],
     resources={
         "k8s_pipes_client": PipesK8sClient(),
     },

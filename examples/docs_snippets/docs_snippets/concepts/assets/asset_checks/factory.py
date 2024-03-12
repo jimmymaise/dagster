@@ -4,7 +4,7 @@ from mock import MagicMock
 
 from dagster import (
     AssetCheckResult,
-    AssetChecksDefinition,
+    AssetsDefinition,
     Definitions,
     asset,
     asset_check,
@@ -19,7 +19,7 @@ def orders(): ...
 def items(): ...
 
 
-def make_check(check_blob: Mapping[str, str]) -> AssetChecksDefinition:
+def make_check(check_blob: Mapping[str, str]) -> AssetsDefinition:
     @asset_check(
         name=check_blob["name"],
         asset=check_blob["asset"],
@@ -47,6 +47,5 @@ check_blobs = [
 
 defs = Definitions(
     assets=[orders, items],
-    asset_checks=[make_check(check_blob) for check_blob in check_blobs],
     resources={"db_connection": MagicMock()},
 )

@@ -919,6 +919,14 @@ class StepExecutionContext(PlanExecutionContext, IStepContext):
         return False
 
     @property
+    def is_asset_check_step(self) -> bool:
+        """Whether this step corresponds to at least one asset check."""
+        return any(
+            self.job_def.asset_layer.asset_check_key_for_output(self.node_handle, output.name)
+            for output in self.step.step_outputs
+        )
+
+    @property
     def is_in_graph_asset(self) -> bool:
         """If the step is an op in a graph-backed asset returns True. Checks by first confirming the
         step is in a graph, then checking that the node corresponds to an AssetsDefinitions in the asset layer.
@@ -926,14 +934,6 @@ class StepExecutionContext(PlanExecutionContext, IStepContext):
         return (
             self.is_op_in_graph
             and self.job_def.asset_layer.assets_defs_by_node_handle.get(self.node_handle)
-            is not None
-        )
-
-    @property
-    def is_asset_check_step(self) -> bool:
-        """Whether this step corresponds to an asset check."""
-        return (
-            self.job_def.asset_layer.asset_checks_defs_by_node_handle.get(self.node_handle)
             is not None
         )
 

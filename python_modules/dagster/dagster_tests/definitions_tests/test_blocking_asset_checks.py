@@ -13,13 +13,12 @@ from dagster._core.definitions.asset_in import AssetIn
 
 def execute_assets_and_checks(
     assets=None,
-    asset_checks=None,
     raise_on_error: bool = True,
     resources=None,
     instance=None,
     tags=None,
 ) -> ExecuteInProcessResult:
-    defs = Definitions(assets=assets, asset_checks=asset_checks, resources=resources)
+    defs = Definitions(assets=assets, resources=resources)
     job_def = defs.get_implicit_global_asset_job_def()
     return job_def.execute_in_process(raise_on_error=raise_on_error, instance=instance, tags=tags)
 

@@ -17,7 +17,6 @@ from dagster._annotations import deprecated, experimental, public
 from dagster._config.pythonic_config import (
     attach_resource_id_to_key_mapping,
 )
-from dagster._core.definitions.asset_checks import AssetChecksDefinition
 from dagster._core.definitions.asset_graph import AssetGraph
 from dagster._core.definitions.events import AssetKey, CoercibleToAssetKey
 from dagster._core.definitions.executor_definition import ExecutorDefinition
@@ -62,7 +61,7 @@ def create_repository_using_definitions_args(
     resources: Optional[Mapping[str, Any]] = None,
     executor: Optional[Union[ExecutorDefinition, Executor]] = None,
     loggers: Optional[Mapping[str, LoggerDefinition]] = None,
-    asset_checks: Optional[Iterable[AssetChecksDefinition]] = None,
+    asset_checks: Optional[Iterable[AssetsDefinition]] = None,
 ) -> Union[RepositoryDefinition, PendingRepositoryDefinition]:
     """Create a named repository using the same arguments as :py:class:`Definitions`. In older
     versions of Dagster, repositories were the mechanism for organizing assets, schedules, sensors,
@@ -251,7 +250,7 @@ def _create_repository_using_definitions_args(
     resources: Optional[Mapping[str, Any]] = None,
     executor: Optional[Union[ExecutorDefinition, Executor]] = None,
     loggers: Optional[Mapping[str, LoggerDefinition]] = None,
-    asset_checks: Optional[Iterable[AssetChecksDefinition]] = None,
+    asset_checks: Optional[Iterable[AssetsDefinition]] = None,
 ):
     check.opt_iterable_param(
         assets, "assets", (AssetsDefinition, SourceAsset, CacheableAssetsDefinition)
@@ -337,7 +336,7 @@ class Definitions:
             Or they can by directly instantiating :py:class:`AssetsDefinition`,
             :py:class:`SourceAsset`, or :py:class:`CacheableAssetsDefinition`.
 
-        asset_checks (Optional[Iterable[AssetChecksDefinition]]):
+        asset_checks (Optional[Iterable[AssetsDefinition]]):
             A list of asset checks.
 
         schedules (Optional[Iterable[Union[ScheduleDefinition, UnresolvedPartitionedAssetScheduleDefinition]]]):
@@ -428,7 +427,7 @@ class Definitions:
         resources: Optional[Mapping[str, Any]] = None,
         executor: Optional[Union[ExecutorDefinition, Executor]] = None,
         loggers: Optional[Mapping[str, LoggerDefinition]] = None,
-        asset_checks: Optional[Iterable[AssetChecksDefinition]] = None,
+        asset_checks: Optional[Iterable[AssetsDefinition]] = None,
     ):
         self._created_pending_or_normal_repo = _create_repository_using_definitions_args(
             name=SINGLETON_REPOSITORY_NAME,
