@@ -7,6 +7,7 @@ import warnings
 from collections import OrderedDict
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextvars import copy_context
+from functools import wraps
 from typing import (
     AbstractSet,
     Any,
@@ -23,7 +24,8 @@ from typing import (
 from weakref import WeakSet
 
 import toposort as toposort_
-from typing_extensions import Final
+from pydantic.dataclasses import dataclass as pydantic_dataclass
+from typing_extensions import Final, dataclass_transform
 
 import dagster._check as check
 from dagster._utils import library_version_from_core_version, parse_package_version
@@ -196,3 +198,25 @@ class InheritContextThreadPoolExecutor(FuturesAwareThreadPoolExecutor):
 def is_valid_email(email: str) -> bool:
     regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b"
     return bool(re.fullmatch(regex, email))
+
+
+@dataclass_transform(frozen_default=True)
+def strict_dataclass(cls):
+    cls = pydantic_dataclass(cls, frozen=True)
+    original_init = cls.__init__
+
+    @wraps(original_init)
+    def new_init(self, *args, **kwargs):
+        valid_fields = set(self.__annotations__.keys())
+
+        annotation_keys_list = list(self.__annotations__.keys())
+        all_args = kwargs.keys() | {annotation_keys_list[i] for i in range(len(args))}
+
+        extra_fields = all_args - valid_fields
+        if extra_fields:
+            raise TypeError(f"Extra fields provided: {extra_fields}")
+
+        original_init(self, *args, **kwargs)
+
+    cls.__init__ = new_init
+    return cls
